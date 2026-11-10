@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>أستاذ السبورة الذكية | Live AI Whiteboard Lecture</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- شريط العنوان العلوي -->
+  <header class="app-header">
+    <div class="logo">
+      <span class="icon">👨‍🏫</span>
+      <span class="title">أستاذ السبورة التفاعلية</span>
+      <span class="badge">Live Lecture</span>
+    </div>
+
+    <div class="header-actions">
+      <button id="clearBtn" class="btn btn-secondary">مسح السبورة</button>
+      <button id="settingsBtn" class="btn btn-icon" title="إعدادات الـ API">⚙️ إعدادات API</button>
+    </div>
+  </header>
+
+  <!-- جسم التطبيق الرئيسي -->
+  <main class="app-container">
+    
+    <!-- مساحة السبورة البيضاء التفاعلية -->
+    <div class="whiteboard-wrapper">
+      <div class="canvas-header">
+        <h2 id="lessonTitle">جاهز للشرح... اكتب موضوعك في الشات</h2>
+        <div class="status-indicator" id="statusIndicator">
+          <span class="dot"></span>
+          <span class="text" id="statusText">مستعد</span>
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="whiteboardCanvas" width="1250" height="720"></canvas>
+      </div>
+
+      <!-- شريط وقت الدرس المباشر (مثل مشغل الفيديو) -->
+      <div class="lecture-bar">
+        <audio id="lectureAudio" preload="auto"></audio>
+        <div class="time-display" id="timeDisplay">⏱️ 00:00 / 00:00</div>
+        <div class="progress-container">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الشريط الجانبي للدردشة والطلب -->
+    <aside class="chat-sidebar">
+      <div class="sidebar-header">
+        <h3>الأستاذ الذكي</h3>
+        <p>شرح حي متواصل بالصوت والرسم والصور</p>
+      </div>
+
+      <div class="chat-history" id="chatHistory">
+        <div class="message system-msg">
+          مرحباً بك! اطلب مني شرح أي شيء، وسأشرحه لك بصوتي كأستاذ يرسم ويكتب على السبورة ويعرض الصور التوضيحية دون أي انقطاع.
+        </div>
+      </div>
+
+      <div class="input-box">
+        <form id="explainForm">
+          <textarea id="topicInput" placeholder="اكتب الموضوع... مثلاً: اشرح لي عمل السيارة" rows="3" required></textarea>
+          <div class="form-bottom">
+            <select id="langSelect" class="lang-select">
+              <option value="ar">العربية 🇸🇦</option>
+              <option value="en">English 🇺🇸</option>
+            </select>
+            <button type="submit" id="submitBtn" class="btn btn-primary">
+              <span class="btn-text">ابدأ الدرس</span>
+              <span class="spinner" style="display:none;">⏳</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- نافذة تعديل إعدادات الـ API -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>إعدادات الذكاء الاصطناعي و الـ API</h3>
+        <button class="close-btn" id="closeSettingsBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>رابط الـ API:</label>
+          <input type="text" id="cfgApiUrl" placeholder="http://127.0.0.1:8008/v1/chat/completions">
+        </div>
+        <div class="form-group">
+          <label>مفتاح الـ API (API Key):</label>
+          <input type="password" id="cfgApiKey" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+          <label>اسم النموذج (Model):</label>
+          <input type="text" id="cfgModel" placeholder="gpt-4o">
+        </div>
+        <div class="form-group">
+          <label>صوت الأستاذ (Edge-TTS):</label>
+          <select id="cfgVoiceAr">
+            <option value="ar-EG-ShakirNeural">شاكر (مصر - أستاذ متفاعل)</option>
+            <option value="ar-SA-HamedNeural">حامد (السعودية - نبرة رصينة)</option>
+            <option value="ar-EG-SalmaNeural">سلمى (مصر - نبرة واضحة)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="saveConfigBtn" class="btn btn-primary">حفظ الإعدادات</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/whiteboard.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

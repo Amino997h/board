@@ -1,0 +1,18 @@
+{
+  "llm": {
+    "provider": "local_openai",
+    "api_url": "http://127.0.0.1:8008/v1/chat/completions",
+    "api_key": "sk-chatgpt-local-secret-key",
+    "model": "gpt-4o"
+  },
+  "tts": {
+    "engine": "edge-tts",
+    "voice_ar": "ar-EG-ShakirNeural",
+    "voice_en": "en-US-GuyNeural",
+    "rate": "+0%"
+  },
+  "whiteboard": {
+    "theme": "light",
+    "auto_play": true
+  }
+}
