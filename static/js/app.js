@@ -23,7 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const cfgVoiceAr = document.getElementById('cfgVoiceAr');
 
   let currentPlan = null;
-  let activeSentenceIdx = 0;
+  let activeSceneIdx = 0;
+  let totalVideoDuration = 0;
+  let elapsedVideoTime = 0;
+  let videoTimer = null;
 
   async function loadConfig() {
     try {
@@ -35,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cfgModel.value = cfg.llm.model || '';
       }
       if (cfg.tts) {
-        cfgVoiceAr.value = cfg.tts.voice_ar || 'ar-EG-ShakirNeural';
+        cfgVoiceAr.value = "ar-SA-HamedNeural"; // تثبيت صوت الرجل تلقائياً
       }
     } catch (e) {
       console.error(e);
@@ -60,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         tts: {
           engine: "edge-tts",
-          voice_ar: cfgVoiceAr.value,
+          voice_ar: "ar-SA-HamedNeural", // صوت الرجل دائماً
           voice_en: "en-US-GuyNeural"
         }
       }
@@ -83,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
   clearBtn.addEventListener('click', () => {
     whiteboard.clear();
     lectureAudio.pause();
+    clearInterval(videoTimer);
     lessonTitle.textContent = 'جاهز للشرح... اكتب موضوعك في الشات';
     statusText.textContent = 'مستعد';
     progressBar.style.width = '0%';
@@ -98,9 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
     topicInput.value = '';
 
     submitBtn.disabled = true;
-    submitBtn.querySelector('.btn-text').textContent = 'الرسام يجهز السكتشات...';
+    submitBtn.querySelector('.btn-text').textContent = 'تحضير الفيديو الشامل...';
     submitBtn.querySelector('.spinner').style.display = 'inline-block';
-    statusText.textContent = 'جاري التوليد وسحب الصور الصوتية...';
+    statusText.textContent = 'جاري التوليد وسحب الصور والشرح المفصل...';
 
     try {
       const response = await fetch('/api/explain', {
@@ -116,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!response.ok) throw new Error(data.error || 'فشل الاتصال بالـ API');
 
       currentPlan = data;
-      startDoodleLecture(data);
+      startFullVideoLecture(data);
 
     } catch (err) {
       console.error(err);
@@ -137,61 +141,75 @@ document.addEventListener('DOMContentLoaded', () => {
     chatHistory.scrollTop = chatHistory.scrollHeight;
   }
 
-  // تشغيل الدرس جملة بجملة: نطق الجملة ➔ في نفس اللحظة رسم السكتش الأسود + نص الجملة + الصورة
-  function startDoodleLecture(plan) {
+  function formatTime(secs) {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  // تشغيل الفيديو المستمر للأستاذ (بدون أي تقطيع أو تفريد لجمل)
+  function startFullVideoLecture(plan) {
     whiteboard.clear();
-    activeSentenceIdx = 0;
+    activeSceneIdx = 0;
+    clearInterval(videoTimer);
+    elapsedVideoTime = 0;
 
     const title = plan.title || 'شرح الدرس';
     lessonTitle.textContent = title;
-    statusText.textContent = 'الأستاذ يرسم السكتشات ويشرح...';
+    statusText.textContent = 'الأستاذ يشرح ويرسم على السبورة...';
 
-    const sentences = plan.sentences || [];
-    if (sentences.length === 0) return;
+    const scenes = plan.scenes || [];
+    if (scenes.length === 0) return;
 
-    // 1. حساب مواضع الجمل على السبورة
-    whiteboard.computeSentencesLayout(sentences);
+    // تقدير إجمالي وقت الفيديو بناءً على طول الكلمات
+    totalVideoDuration = scenes.reduce((acc, sc) => acc + Math.max(5, (sc.narration || '').length * 0.12), 0);
 
-    // 2. كتابة العنوان في الأعلى
+    // 1. حساب مواضع المشاهد
+    whiteboard.computeScenesLayout(scenes);
+
+    // 2. كتابة العنوان في الأعلى بالقلم
     whiteboard.drawTitleAnimated(title);
 
-    // 3. بدء الجملة الأولى بعد كتابة العنوان
+    // عداد الوقت المستمر للفيديو ككل (مثل مشغل يوتيوب بالضبط)
+    videoTimer = setInterval(() => {
+      elapsedVideoTime += 0.25;
+      const progress = Math.min(100, (elapsedVideoTime / totalVideoDuration) * 100);
+      progressBar.style.width = `${progress}%`;
+      timeDisplay.textContent = `⏱️ ${formatTime(elapsedVideoTime)} / ${formatTime(totalVideoDuration)}`;
+    }, 250);
+
+    // 3. انطلاق المشهد الأول
     setTimeout(() => {
-      playSentence(0);
+      playNextScene(0);
     }, 1200);
   }
 
-  function playSentence(index) {
-    if (!currentPlan || !currentPlan.sentences || index >= currentPlan.sentences.length) {
-      statusText.textContent = 'اكتمل الدرس بنجاح!';
+  function playNextScene(index) {
+    if (!currentPlan || !currentPlan.scenes || index >= currentPlan.scenes.length) {
+      clearInterval(videoTimer);
+      statusText.textContent = 'اكتمل الشرح بنجاح!';
       progressBar.style.width = '100%';
+      timeDisplay.textContent = `⏱️ ${formatTime(totalVideoDuration)} / ${formatTime(totalVideoDuration)}`;
       return;
     }
 
-    activeSentenceIdx = index;
-    const sent = currentPlan.sentences[index];
-    const total = currentPlan.sentences.length;
+    activeSceneIdx = index;
+    const scene = currentPlan.scenes[index];
 
-    // تحديث النسبة والوقت
-    const progressPercent = ((index) / total) * 100;
-    progressBar.style.width = `${progressPercent}%`;
-    timeDisplay.textContent = `جملة ${index + 1} من ${total}`;
-
-    // تشغيل صوت هذه الجملة تحديداً
-    if (sent.audio_url) {
-      lectureAudio.src = sent.audio_url;
+    // تشغيل صوت الأستاذ الرصين
+    if (scene.audio_url) {
+      lectureAudio.src = scene.audio_url;
       lectureAudio.play().catch(e => console.warn('Audio play info:', e));
     }
 
-    // في نفس اللحظة: رسم السكتش الأسود وكتابة الجملة تحته وظهور الصورة
-    whiteboard.drawSentenceAnimated(sent, index, () => {
-      // عند اكتمال الرسم، ننتظر انتهاء نطق الجملة ثم ننتقل للجملة التالية
-      if (sent.audio_url && !lectureAudio.ended && !lectureAudio.paused) {
+    // رسم السكتش الأسود المتناسق مع الصوت وكتابة الشرح تحته والصورة بجانبه
+    whiteboard.drawSceneAnimated(scene, () => {
+      if (scene.audio_url && !lectureAudio.ended && !lectureAudio.paused) {
         lectureAudio.onended = () => {
-          setTimeout(() => playSentence(index + 1), 500);
+          setTimeout(() => playNextScene(index + 1), 500);
         };
       } else {
-        setTimeout(() => playSentence(index + 1), 1000);
+        setTimeout(() => playNextScene(index + 1), 900);
       }
     });
   }

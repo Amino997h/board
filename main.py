@@ -52,27 +52,32 @@ async def create_explanation(req: ExplainRequest):
     config = get_config()
     session_id = str(uuid.uuid4())[:8]
 
-    # 1. استدعاء النموذج اللغوي بالهيكل الصارم (جمل وسكتشات)
+    # 1. استدعاء النموذج اللغوي لإنشاء المشاهد المفصلة
     try:
         plan = generate_whiteboard_plan(topic, config)
     except Exception as e:
         print(f"API Error: {e}")
         return JSONResponse({"error": f"فشل الاتصال بالـ API: {str(e)}"}, status_code=500)
 
-    sentences = plan.get("sentences", [])
-    voice = config.get("tts", {}).get("voice_ar" if req.language == "ar" else "voice_en", "ar-EG-ShakirNeural")
+    # توحيد المفاتيح سواء كانت scenes أو sentences
+    scenes = plan.get("scenes") or plan.get("sentences") or []
+    plan["scenes"] = scenes
 
-    # 2. توليد ملف صوتي مستقل لكل جملة لضمان التزامن 100% بين نطق الجملة ورسم سكتشها
-    for i, s in enumerate(sentences):
-        text = s.get("sentence_text", "")
-        audio_name = f"{session_id}_sent_{i}.mp3"
+    # تثبيت صوت الرجل الطبيعي الرصين (حامد السعودي أو شاكر)
+    fixed_male_voice = "ar-SA-HamedNeural" if req.language == "ar" else "en-US-GuyNeural"
+
+    # 2. توليد الصوت لكل مشهد مع الصورة التوضيحية
+    for i, sc in enumerate(scenes):
+        narration = sc.get("narration") or sc.get("sentence_text") or ""
+        sc["narration"] = narration
+
+        audio_name = f"{session_id}_sc_{i}.mp3"
         audio_path = os.path.join(MEDIA_DIR, audio_name)
-        ok = await synthesize_speech(text, audio_path, lang=req.language, voice=voice)
+        ok = await synthesize_speech(narration, audio_path, lang=req.language, voice=fixed_male_voice)
         if ok:
-            s["audio_url"] = f"/media/{audio_name}"
+            sc["audio_url"] = f"/media/{audio_name}"
 
-        # تنزيل صورة توضيحية من الإنترنت بجانب الرسمة
-        img_q = s.get("image_query", "")
+        img_q = sc.get("image_query", "")
         if img_q:
             urls = scrape_bing_images(img_q, max_results=2)
             img_done = False
@@ -80,11 +85,11 @@ async def create_explanation(req: ExplainRequest):
                 img_name = f"{session_id}_img_{i}_{str(uuid.uuid4())[:4]}.jpg"
                 save_dest = os.path.join(MEDIA_DIR, img_name)
                 if download_image(u, save_dest):
-                    s["image_url"] = f"/media/{img_name}"
+                    sc["image_url"] = f"/media/{img_name}"
                     img_done = True
                     break
             if not img_done:
-                s["image_url"] = ""
+                sc["image_url"] = ""
 
     return plan
 

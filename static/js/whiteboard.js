@@ -70,7 +70,6 @@ class DoodleWhiteboard {
       }
 
       this.ctx.save();
-      // خلفية بيضاء ناصعة مثل سبورة حقيقية
       this.ctx.fillStyle = '#ffffff';
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -127,17 +126,16 @@ class DoodleWhiteboard {
     }
   }
 
-  // توزيع المشاهد المتتالية أفقياً بمسافات كافية وبسيطة
-  computeSentencesLayout(sentences) {
+  computeScenesLayout(scenes) {
     let currentX = 250;
-    const stepX = 550;
+    const stepX = 580;
 
-    sentences.forEach((s, idx) => {
-      s._x = currentX;
-      s._y = 300;
-      s._centerX = currentX + 120;
-      s._centerY = 300;
-      this.itemsMap[idx] = s;
+    scenes.forEach((sc, idx) => {
+      sc._x = currentX;
+      sc._y = 300;
+      sc._centerX = currentX + 130;
+      sc._centerY = 300;
+      this.itemsMap[idx] = sc;
       currentX += stepX;
     });
   }
@@ -162,88 +160,117 @@ class DoodleWhiteboard {
     return lines;
   }
 
-  // رسم سكتشات بسيطة جداً بقلم أسود نقي (Hand-drawn Ink Sketches)
-  drawDoodleSketch(ctx, type, x, y, progress = 1) {
+  // رسم سكتشات هندسية واضحة ونظيفة بدون أي صلبان نهائياً
+  drawCleanDoodle(ctx, sketchType, x, y, progress = 1) {
     ctx.save();
-    ctx.strokeStyle = '#18181b'; // أسود قلم فلوماستر
+    ctx.strokeStyle = '#18181b';
     ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    const cx = x + 70;
-    const cy = y - 40;
+    const cx = x + 75;
+    const cy = y - 45;
+    const type = (sketchType || '').toLowerCase();
 
-    if (type === 'gear' || type === 'gears') {
-      // ترس بسيط
+    if (type.includes('tank') || type.includes('tread') || type.includes('armor')) {
+      // سكتش دبابة / جنزير مدرعة
+      ctx.beginPath();
+      ctx.roundRect(cx - 50, cy + 5, 100, 30, 15);
+      ctx.stroke();
+      // عجلات الجنزير
+      for (let i = -30; i <= 30; i += 20) {
+        ctx.beginPath();
+        ctx.arc(cx + i, cy + 20, 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (progress > 0.4) {
+        // برج الدبابة
+        ctx.beginPath();
+        ctx.arc(cx, cy + 5, 25, Math.PI, 0);
+        ctx.stroke();
+        // المدفع
+        ctx.beginPath();
+        ctx.moveTo(cx + 25, cy - 8);
+        ctx.lineTo(cx + 70, cy - 8);
+        ctx.stroke();
+      }
+    } else if (type.includes('gun') || type.includes('barrel') || type.includes('missile')) {
+      // مدفع أو صاروخ
+      ctx.beginPath();
+      ctx.moveTo(cx - 40, cy);
+      ctx.lineTo(cx + 40, cy);
+      ctx.moveTo(cx - 40, cy + 16);
+      ctx.lineTo(cx + 40, cy + 16);
+      ctx.stroke();
+      if (progress > 0.5) {
+        // رأس المدفع / الصاروخ
+        ctx.beginPath();
+        ctx.moveTo(cx + 40, cy - 6);
+        ctx.lineTo(cx + 60, cy + 8);
+        ctx.lineTo(cx + 40, cy + 22);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    } else if (type.includes('gear')) {
+      // ترس ميكانيكي مسنن
       const r = 36;
       ctx.beginPath();
       ctx.arc(cx, cy, r * progress, 0, Math.PI * 2);
       ctx.stroke();
-      if (progress > 0.5) {
+      if (progress > 0.4) {
         ctx.beginPath();
-        ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
         ctx.stroke();
-        // أسنان الترس
         for (let i = 0; i < 6; i++) {
           const a = (i * Math.PI) / 3;
           ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
+          ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
           ctx.lineTo(cx + Math.cos(a) * (r + 10), cy + Math.sin(a) * (r + 10));
           ctx.stroke();
         }
       }
-    } else if (type === 'piston' || type === 'engine_piston') {
-      // مكبس وأسطوانة
+    } else if (type.includes('piston') || type.includes('engine')) {
+      // مكبس ومحرك
       ctx.beginPath();
-      ctx.rect(cx - 28, cy - 35, 56, 45); // المكبس
+      ctx.rect(cx - 26, cy - 35, 52, 45);
       ctx.stroke();
       if (progress > 0.4) {
         ctx.beginPath();
         ctx.moveTo(cx, cy + 10);
-        ctx.lineTo(cx, cy + 50); // ذراع التوصيل
+        ctx.lineTo(cx, cy + 48);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(cx, cy + 50, 8, 0, Math.PI * 2);
+        ctx.arc(cx, cy + 48, 8, 0, Math.PI * 2);
         ctx.stroke();
       }
-    } else if (type === 'wheel' || type === 'wheel_moving') {
-      // عجلة وإطار
-      const r = 38;
+    } else if (type.includes('wheel')) {
+      // عجلة
       ctx.beginPath();
-      ctx.arc(cx, cy, r * progress, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 38 * progress, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 15, 0, Math.PI * 2);
       ctx.stroke();
-      if (progress > 0.6) {
-        // خطوط الحركة خلف العجلة
-        ctx.beginPath();
-        ctx.moveTo(cx - 50, cy + 30);
-        ctx.lineTo(cx - 75, cy + 30);
-        ctx.moveTo(cx - 45, cy + 15);
-        ctx.lineTo(cx - 65, cy + 15);
-        ctx.stroke();
-      }
-    } else if (type === 'fire') {
-      // شعلة نار بسيطة
+    } else if (type.includes('fire')) {
+      // شعلة طاقة
       ctx.beginPath();
-      ctx.moveTo(cx, cy + 35);
-      ctx.quadraticCurveTo(cx - 30, cy + 15, cx - 15, cy - 10);
-      ctx.quadraticCurveTo(cx - 20, cy - 35, cx, cy - 45);
-      ctx.quadraticCurveTo(cx + 20, cy - 25, cx + 15, cy - 5);
-      ctx.quadraticCurveTo(cx + 30, cy + 15, cx, cy + 35);
+      ctx.moveTo(cx, cy + 30);
+      ctx.quadraticCurveTo(cx - 25, cy + 10, cx - 10, cy - 10);
+      ctx.quadraticCurveTo(cx - 15, cy - 35, cx, cy - 45);
+      ctx.quadraticCurveTo(cx + 15, cy - 25, cx + 10, cy - 5);
+      ctx.quadraticCurveTo(cx + 25, cy + 10, cx, cy + 30);
       ctx.stroke();
     } else {
-      // أيقونة عامة دائرية مع خطوط
+      // سكتش بطاقة توضيحية بقلم أسود ناعم ومفتوح بدون أي صلبان
       ctx.beginPath();
-      ctx.arc(cx, cy, 34 * progress, 0, Math.PI * 2);
+      ctx.roundRect(cx - 45, cy - 35, 90, 70, 10);
       ctx.stroke();
       if (progress > 0.5) {
         ctx.beginPath();
-        ctx.moveTo(cx - 15, cy);
-        ctx.lineTo(cx + 15, cy);
-        ctx.moveTo(cx, cy - 15);
-        ctx.lineTo(cx, cy + 15);
+        ctx.moveTo(cx - 25, cy - 10);
+        ctx.lineTo(cx + 25, cy - 10);
+        ctx.moveTo(cx - 25, cy + 10);
+        ctx.lineTo(cx + 15, cy + 10);
         ctx.stroke();
       }
     }
@@ -301,9 +328,8 @@ class DoodleWhiteboard {
     this.activeAnimations.push(anim);
   }
 
-  // رسم الجملة الحالية: رسمة سكتش بالقلم الأسود + كتابة نص الجملة تحته حرفاً بحرف + صورة واقعية
-  drawSentenceAnimated(sentence, index, onFinish) {
-    this.focusOn(sentence._centerX, sentence._y + 50);
+  drawSceneAnimated(scene, onFinish) {
+    this.focusOn(scene._centerX, scene._y + 50);
 
     let sketchProg = 0;
     let textCharIdx = 0;
@@ -311,67 +337,68 @@ class DoodleWhiteboard {
     let imgOpacity = 0;
     let imgObj = null;
 
-    if (sentence.image_url) {
+    if (scene.image_url) {
       imgObj = new Image();
       imgObj.crossOrigin = "anonymous";
-      imgObj.src = sentence.image_url;
+      imgObj.src = scene.image_url;
     }
 
     const anim = {
       update: (ctx) => {
         tick++;
-        const x = sentence._x;
-        const y = sentence._y;
-        const text = sentence.sentence_text || '';
-        const label = sentence.doodle_label || '';
+        const x = scene._x;
+        const y = scene._y;
+        const text = scene.narration || '';
+        const label = scene.label || '';
+        const sketch = scene.sketch || scene.doodle_type || 'box';
 
-        // 1. رسم السكتش البسيط بالقلم الأسود
+        // 1. رسم السكتش الأسود
         sketchProg = Math.min(1, sketchProg + 0.035);
-        this.drawDoodleSketch(ctx, sentence.doodle_type, x, y, sketchProg);
+        this.drawCleanDoodle(ctx, sketch, x, y, sketchProg);
 
-        // 2. كتابة عنوان السكتش بالقلم الأسود
+        // 2. كتابة العنوان التوضيحي
         if (sketchProg >= 0.7) {
           ctx.save();
           ctx.fillStyle = '#18181b';
           ctx.font = 'bold 16px Cairo, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(label, x + 70, y + 40);
+          ctx.fillText(label, x + 75, y + 42);
 
-          // 3. كتابة نص الجملة التي تقال في الصوت حرفاً بحرف
+          // 3. كتابة نص الشرح المباشر حرفاً بحرف
           if (tick % 2 === 0 && textCharIdx < text.length) {
             textCharIdx++;
           }
 
           ctx.font = '14px Cairo, sans-serif';
-          const maxTextW = 320;
+          const maxTextW = 330;
           const currentText = text.substring(0, textCharIdx);
           const lines = this.wrapText(ctx, currentText, maxTextW);
 
           ctx.fillStyle = '#27272a';
           ctx.textAlign = 'right';
           lines.forEach((l, lIdx) => {
-            const prefix = lIdx === 0 ? "💬 " : "    ";
-            ctx.fillText(prefix + l, x + 200, y + 75 + lIdx * 22);
+            const prefix = lIdx === 0 ? "🎙️ " : "    ";
+            ctx.fillText(prefix + l, x + 210, y + 78 + lIdx * 22);
           });
 
-          // 4. ظهور الصورة التوضيحية بجانب السكتش
+          // 4. ظهور الصورة التوضيحية
           if (imgObj && imgObj.complete && imgOpacity < 1) {
             imgOpacity = Math.min(1, imgOpacity + 0.03);
           }
           if (imgObj && imgObj.complete && imgOpacity > 0) {
             ctx.globalAlpha = imgOpacity;
-            const imgW = 140;
-            const imgH = 120;
+            const imgW = 145;
+            const imgH = 125;
             ctx.fillStyle = '#ffffff';
             ctx.strokeStyle = '#e4e4e7';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.roundRect(x + 180, y - 100, imgW, imgH, 10);
+            ctx.roundRect(x + 190, y - 105, imgW, imgH, 10);
             ctx.fill();
             ctx.stroke();
 
             ctx.clip();
-            ctx.drawImage(imgObj, x + 185, y - 95, imgW - 10, imgH - 10);
+            ctx.drawImage(imgObj, x + 195, y - 100, imgW - 10, imgH - 10);
             ctx.globalAlpha = 1.0;
           }
           ctx.restore();
@@ -379,12 +406,13 @@ class DoodleWhiteboard {
 
         if (sketchProg >= 1 && textCharIdx >= text.length && (!imgObj || imgOpacity >= 0.9)) {
           this.drawnObjects.push({
-            render: (c) => this.renderStaticSentence(c, sentence, imgObj)
+            render: (c) => this.renderStaticScene(c, scene, imgObj)
           });
 
-          // رسم السهم إلى الجملة التالية إن وجد
-          if (sentence.arrow_to_next) {
-            this.drawNextArrow(sentence._x + 340, sentence._y, sentence._x + 500, sentence._y, sentence.arrow_to_next);
+          // رسم السهم إلى المشهد التالي
+          const arrowLabel = scene.arrow_text || scene.arrow_to_next;
+          if (arrowLabel) {
+            this.drawNextArrow(scene._x + 360, scene._y, scene._x + 530, scene._y, arrowLabel);
           }
 
           if (onFinish) onFinish();
@@ -396,7 +424,6 @@ class DoodleWhiteboard {
     this.activeAnimations.push(anim);
   }
 
-  // رسم السهم الممتد بالقلم الأسود نحو الجملة التالية
   drawNextArrow(startX, startY, endX, endY, label) {
     let progress = 0;
     const anim = {
@@ -474,38 +501,39 @@ class DoodleWhiteboard {
     this.activeAnimations.push(anim);
   }
 
-  renderStaticSentence(ctx, s, imgObj) {
-    const x = s._x;
-    const y = s._y;
-    this.drawDoodleSketch(ctx, s.doodle_type, x, y, 1);
+  renderStaticScene(ctx, sc, imgObj) {
+    const x = sc._x;
+    const y = sc._y;
+    const sketch = sc.sketch || sc.doodle_type || 'box';
+    this.drawCleanDoodle(ctx, sketch, x, y, 1);
 
     ctx.save();
     ctx.fillStyle = '#18181b';
     ctx.font = 'bold 16px Cairo, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(s.doodle_label || '', x + 70, y + 40);
+    ctx.fillText(sc.label || '', x + 75, y + 42);
 
     ctx.font = '14px Cairo, sans-serif';
-    const lines = this.wrapText(ctx, s.sentence_text || '', 320);
+    const lines = this.wrapText(ctx, sc.narration || '', 330);
     ctx.fillStyle = '#27272a';
     ctx.textAlign = 'right';
     lines.forEach((l, lIdx) => {
-      const prefix = lIdx === 0 ? "💬 " : "    ";
-      ctx.fillText(prefix + l, x + 200, y + 75 + lIdx * 22);
+      const prefix = lIdx === 0 ? "🎙️ " : "    ";
+      ctx.fillText(prefix + l, x + 210, y + 78 + lIdx * 22);
     });
 
     if (imgObj && imgObj.complete) {
-      const imgW = 140;
-      const imgH = 120;
+      const imgW = 145;
+      const imgH = 125;
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#e4e4e7';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(x + 180, y - 100, imgW, imgH, 10);
+      ctx.roundRect(x + 190, y - 105, imgW, imgH, 10);
       ctx.fill();
       ctx.stroke();
 
-      ctx.drawImage(imgObj, x + 185, y - 95, imgW - 10, imgH - 10);
+      ctx.drawImage(imgObj, x + 195, y - 100, imgW - 10, imgH - 10);
     }
     ctx.restore();
   }
