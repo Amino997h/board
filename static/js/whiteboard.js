@@ -1,11 +1,10 @@
-class InfiniteWhiteboard {
+class DoodleWhiteboard {
   constructor(canvasId) {
     this.canvas = document.getElementById(canvasId);
     this.ctx = this.canvas.getContext('2d');
     
-    // إعدادات الكاميرا والتفاعل اليدوي
     this.camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
-    this.liveFocus = { x: 0, y: 0 }; // موضع العنصر المباشر الذي يشرحه الأستاذ الآن
+    this.liveFocus = { x: 0, y: 0 };
     
     this.isUserDragging = false;
     this.dragStart = { x: 0, y: 0 };
@@ -14,7 +13,7 @@ class InfiniteWhiteboard {
 
     this.drawnObjects = [];
     this.activeAnimations = [];
-    this.elementsMap = {};
+    this.itemsMap = {};
 
     this.setupInteractions();
     this.startLoop();
@@ -24,13 +23,12 @@ class InfiniteWhiteboard {
   clear() {
     this.drawnObjects = [];
     this.activeAnimations = [];
-    this.elementsMap = {};
+    this.itemsMap = {};
     this.camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
     this.liveFocus = { x: 0, y: 0 };
     this.userInteracting = false;
   }
 
-  // إعداد سحب وإفلات الفأرة للتنقل الحر بالسبورة
   setupInteractions() {
     this.canvas.addEventListener('mousedown', (e) => {
       this.isUserDragging = true;
@@ -44,8 +42,6 @@ class InfiniteWhiteboard {
       if (!this.isUserDragging) return;
       const dx = e.clientX - this.dragStart.x;
       const dy = e.clientY - this.dragStart.y;
-      
-      // تحريك الكاميرا فوراً مع يد المستخدم
       this.camera.x = this.dragCameraStart.x - dx;
       this.camera.y = this.dragCameraStart.y - dy;
       this.camera.targetX = this.camera.x;
@@ -56,8 +52,6 @@ class InfiniteWhiteboard {
       if (this.isUserDragging) {
         this.isUserDragging = false;
         this.canvas.style.cursor = 'grab';
-        
-        // عند إفلات الفأرة: العودة الذكية والناعمة للعنصر المباشر الحالي!
         setTimeout(() => {
           this.userInteracting = false;
           this.snapBackToLive();
@@ -68,29 +62,22 @@ class InfiniteWhiteboard {
     this.canvas.style.cursor = 'grab';
   }
 
-  // حلقة الرسم والتحريك المستمرة (60 FPS)
   startLoop() {
     const render = () => {
-      // إذا لم يكن المستخدم يسحب الكاميرا بيده، تتحرك الكاميرا بنعومة نحو الهدف
       if (!this.isUserDragging) {
-        this.camera.x += (this.camera.targetX - this.camera.x) * 0.07;
-        this.camera.y += (this.camera.targetY - this.camera.y) * 0.07;
+        this.camera.x += (this.camera.targetX - this.camera.x) * 0.08;
+        this.camera.y += (this.camera.targetY - this.camera.y) * 0.08;
       }
 
       this.ctx.save();
+      // خلفية بيضاء ناصعة مثل سبورة حقيقية
       this.ctx.fillStyle = '#ffffff';
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-      // تطبيق إزاحة الكاميرا
       this.ctx.translate(-this.camera.x, -this.camera.y);
-
-      // رسم شبكة السبورة اللانهائية
       this.drawInfiniteGrid();
 
-      // رسم العناصر الثابتة السابقة
       this.drawnObjects.forEach(obj => obj.render(this.ctx));
-
-      // رسم وتحديث الأنيميشن الحي اللحظي
       this.activeAnimations = this.activeAnimations.filter(anim => anim.update(this.ctx));
 
       this.ctx.restore();
@@ -125,62 +112,145 @@ class InfiniteWhiteboard {
     ctx.restore();
   }
 
-  // تركيز الكاميرا على موضع العنصر المباشر
   focusOn(worldX, worldY) {
     this.liveFocus = { x: worldX, y: worldY };
     if (!this.userInteracting) {
-      this.camera.targetX = worldX - this.canvas.width / 2 + 100;
-      this.camera.targetY = worldY - this.canvas.height / 2 + 80;
+      this.camera.targetX = worldX - this.canvas.width / 2;
+      this.camera.targetY = worldY - this.canvas.height / 2;
     }
   }
 
-  // العودة السلسة الفورية لموضع الشرح اللحظي بعد إفلات الفأرة
   snapBackToLive() {
     if (this.liveFocus.x !== 0 || this.liveFocus.y !== 0) {
-      this.camera.targetX = this.liveFocus.x - this.canvas.width / 2 + 100;
-      this.camera.targetY = this.liveFocus.y - this.canvas.height / 2 + 80;
+      this.camera.targetX = this.liveFocus.x - this.canvas.width / 2;
+      this.camera.targetY = this.liveFocus.y - this.canvas.height / 2;
     }
   }
 
-  computeInfiniteLayout(elements) {
-    const spacing = 520;
-    const startX = 250;
-    const startY = 300;
+  // توزيع المشاهد المتتالية أفقياً بمسافات كافية وبسيطة
+  computeSentencesLayout(sentences) {
+    let currentX = 250;
+    const stepX = 550;
 
-    elements.forEach((elem, idx) => {
-      elem._x = startX + idx * spacing;
-      elem._y = startY;
-      elem._width = 300;
-      elem._height = 100;
-      elem._centerX = elem._x + elem._width / 2;
-      elem._centerY = elem._y + elem._height / 2;
-
-      this.elementsMap[elem.id || `elem_${idx}`] = elem;
+    sentences.forEach((s, idx) => {
+      s._x = currentX;
+      s._y = 300;
+      s._centerX = currentX + 120;
+      s._centerY = 300;
+      this.itemsMap[idx] = s;
+      currentX += stepX;
     });
   }
 
-  // دالة تقسيم النص التلقائي الذكي لمنع خروج النص خارج الصندوق نهائياً
   wrapText(ctx, text, maxWidth) {
     if (!text) return [];
     const words = text.split(' ');
     const lines = [];
-    let currentLine = words[0];
+    let curLine = words[0];
 
     for (let i = 1; i < words.length; i++) {
       const word = words[i];
-      const width = ctx.measureText(currentLine + " " + word).width;
-      if (width < maxWidth) {
-        currentLine += " " + word;
+      const w = ctx.measureText(curLine + " " + word).width;
+      if (w < maxWidth) {
+        curLine += " " + word;
       } else {
-        lines.push(currentLine);
-        currentLine = word;
+        lines.push(curLine);
+        curLine = word;
       }
     }
-    lines.push(currentLine);
+    lines.push(curLine);
     return lines;
   }
 
-  // 1. أنيميشن العنوان
+  // رسم سكتشات بسيطة جداً بقلم أسود نقي (Hand-drawn Ink Sketches)
+  drawDoodleSketch(ctx, type, x, y, progress = 1) {
+    ctx.save();
+    ctx.strokeStyle = '#18181b'; // أسود قلم فلوماستر
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const cx = x + 70;
+    const cy = y - 40;
+
+    if (type === 'gear' || type === 'gears') {
+      // ترس بسيط
+      const r = 36;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * progress, 0, Math.PI * 2);
+      ctx.stroke();
+      if (progress > 0.5) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        // أسنان الترس
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
+          ctx.lineTo(cx + Math.cos(a) * (r + 10), cy + Math.sin(a) * (r + 10));
+          ctx.stroke();
+        }
+      }
+    } else if (type === 'piston' || type === 'engine_piston') {
+      // مكبس وأسطوانة
+      ctx.beginPath();
+      ctx.rect(cx - 28, cy - 35, 56, 45); // المكبس
+      ctx.stroke();
+      if (progress > 0.4) {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + 10);
+        ctx.lineTo(cx, cy + 50); // ذراع التوصيل
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy + 50, 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (type === 'wheel' || type === 'wheel_moving') {
+      // عجلة وإطار
+      const r = 38;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * progress, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+      ctx.stroke();
+      if (progress > 0.6) {
+        // خطوط الحركة خلف العجلة
+        ctx.beginPath();
+        ctx.moveTo(cx - 50, cy + 30);
+        ctx.lineTo(cx - 75, cy + 30);
+        ctx.moveTo(cx - 45, cy + 15);
+        ctx.lineTo(cx - 65, cy + 15);
+        ctx.stroke();
+      }
+    } else if (type === 'fire') {
+      // شعلة نار بسيطة
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 35);
+      ctx.quadraticCurveTo(cx - 30, cy + 15, cx - 15, cy - 10);
+      ctx.quadraticCurveTo(cx - 20, cy - 35, cx, cy - 45);
+      ctx.quadraticCurveTo(cx + 20, cy - 25, cx + 15, cy - 5);
+      ctx.quadraticCurveTo(cx + 30, cy + 15, cx, cy + 35);
+      ctx.stroke();
+    } else {
+      // أيقونة عامة دائرية مع خطوط
+      ctx.beginPath();
+      ctx.arc(cx, cy, 34 * progress, 0, Math.PI * 2);
+      ctx.stroke();
+      if (progress > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 15, cy);
+        ctx.lineTo(cx + 15, cy);
+        ctx.moveTo(cx, cy - 15);
+        ctx.lineTo(cx, cy + 15);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
   drawTitleAnimated(text) {
     let charIndex = 0;
     let tick = 0;
@@ -188,22 +258,19 @@ class InfiniteWhiteboard {
     const anim = {
       update: (ctx) => {
         tick++;
-        // إبطاء الكتابة لتكون واقعية وطبيعية (حرف كل 2 إطارات)
-        if (tick % 2 === 0 && charIndex < text.length) {
-          charIndex++;
-        }
-        const currentSub = text.substring(0, charIndex);
+        if (tick % 2 === 0 && charIndex < text.length) charIndex++;
+        const sub = text.substring(0, charIndex);
 
         ctx.save();
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 22px Cairo, sans-serif';
+        ctx.fillStyle = '#18181b';
+        ctx.font = 'bold 24px Cairo, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText("✍️ " + currentSub, 600, 60);
+        ctx.fillText("✍️ " + sub, 600, 60);
 
-        ctx.strokeStyle = '#cbd5e1';
+        ctx.strokeStyle = '#18181b';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        const lineLen = Math.min((charIndex / text.length) * 600, 600);
+        const lineLen = Math.min((charIndex / text.length) * 550, 550);
         ctx.moveTo(600 - lineLen / 2, 85);
         ctx.lineTo(600 + lineLen / 2, 85);
         ctx.stroke();
@@ -213,15 +280,15 @@ class InfiniteWhiteboard {
           this.drawnObjects.push({
             render: (c) => {
               c.save();
-              c.fillStyle = '#0f172a';
-              c.font = 'bold 22px Cairo, sans-serif';
+              c.fillStyle = '#18181b';
+              c.font = 'bold 24px Cairo, sans-serif';
               c.textAlign = 'center';
               c.fillText("✍️ " + text, 600, 60);
-              c.strokeStyle = '#cbd5e1';
+              c.strokeStyle = '#18181b';
               c.lineWidth = 2.5;
               c.beginPath();
-              c.moveTo(300, 85);
-              c.lineTo(900, 85);
+              c.moveTo(325, 85);
+              c.lineTo(875, 85);
               c.stroke();
               c.restore();
             }
@@ -234,115 +301,93 @@ class InfiniteWhiteboard {
     this.activeAnimations.push(anim);
   }
 
-  // 2. أنيميشن رسم المكون (رسم الأضلاع + كتابة متأنية ومحكمة داخل الحدود + صورة)
-  drawElementAnimated(elem) {
-    this.focusOn(elem._centerX, elem._centerY);
+  // رسم الجملة الحالية: رسمة سكتش بالقلم الأسود + كتابة نص الجملة تحته حرفاً بحرف + صورة واقعية
+  drawSentenceAnimated(sentence, index, onFinish) {
+    this.focusOn(sentence._centerX, sentence._y + 50);
 
-    let drawProgress = 0;
-    let labelCharIndex = 0;
-    let descCharIndex = 0;
+    let sketchProg = 0;
+    let textCharIdx = 0;
     let tick = 0;
     let imgOpacity = 0;
     let imgObj = null;
 
-    if (elem.image_url) {
+    if (sentence.image_url) {
       imgObj = new Image();
       imgObj.crossOrigin = "anonymous";
-      imgObj.src = elem.image_url;
+      imgObj.src = sentence.image_url;
     }
 
     const anim = {
       update: (ctx) => {
         tick++;
-        const { _x: x, _y: y, _width: w, _height: h, label, subtitle, color = '#2563eb' } = elem;
+        const x = sentence._x;
+        const y = sentence._y;
+        const text = sentence.sentence_text || '';
+        const label = sentence.doodle_label || '';
 
-        // المرحلة 1: رسم أضلاع المربع بالقلم بنعومة
-        drawProgress = Math.min(1, drawProgress + 0.035);
-        const perimeter = 2 * (w + h);
-        const currentLen = drawProgress * perimeter;
+        // 1. رسم السكتش البسيط بالقلم الأسود
+        sketchProg = Math.min(1, sketchProg + 0.035);
+        this.drawDoodleSketch(ctx, sentence.doodle_type, x, y, sketchProg);
 
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3.5;
-        ctx.lineJoin = 'round';
-
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        let rem = currentLen;
-
-        if (rem > 0) { const s = Math.min(rem, w); ctx.lineTo(x + s, y); rem -= s; }
-        if (rem > 0) { const s = Math.min(rem, h); ctx.lineTo(x + w, y + s); rem -= s; }
-        if (rem > 0) { const s = Math.min(rem, w); ctx.lineTo(x + w - s, y + h); rem -= s; }
-        if (rem > 0) { const s = Math.min(rem, h); ctx.lineTo(x, y + h - s); rem -= s; }
-        ctx.stroke();
-
-        // المرحلة 2: كتابة عنوان المكون حرفاً بحرف
-        if (drawProgress >= 0.7) {
-          if (tick % 2 === 0 && labelCharIndex < (label || '').length) {
-            labelCharIndex++;
-          }
-
-          ctx.fillStyle = '#0f172a';
+        // 2. كتابة عنوان السكتش بالقلم الأسود
+        if (sketchProg >= 0.7) {
+          ctx.save();
+          ctx.fillStyle = '#18181b';
           ctx.font = 'bold 16px Cairo, sans-serif';
           ctx.textAlign = 'center';
-          const subLabel = (label || '').substring(0, labelCharIndex);
-          ctx.fillText(subLabel, x + w / 2, y + h / 2 + 6);
+          ctx.fillText(label, x + 70, y + 40);
 
-          // كتابة نص الوظيفة داخل بطاقة محكمة بحجم الخط لمنع أي خروج
-          if (subtitle && labelCharIndex >= (label || '').length * 0.8) {
-            if (tick % 2 === 0 && descCharIndex < subtitle.length) {
-              descCharIndex++;
-            }
-
-            ctx.font = 'bold 12px Cairo, sans-serif';
-            const fullLines = this.wrapText(ctx, subtitle, w - 30);
-            const cardHeight = Math.max(80, fullLines.length * 22 + 25);
-
-            ctx.fillStyle = '#f8fafc';
-            ctx.strokeStyle = '#e2e8f0';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.roundRect(x, y + h + 15, w, cardHeight, 10);
-            ctx.fill();
-            ctx.stroke();
-
-            // رسم الأسطر الحالية وفق تقدم الكتابة
-            const currentDesc = subtitle.substring(0, descCharIndex);
-            const activeLines = this.wrapText(ctx, currentDesc, w - 30);
-
-            ctx.fillStyle = '#334155';
-            ctx.textAlign = 'right';
-            activeLines.forEach((line, lineIdx) => {
-              const prefix = lineIdx === 0 ? "📌 " : "    ";
-              ctx.fillText(prefix + line, x + w - 12, y + h + 40 + lineIdx * 20);
-            });
+          // 3. كتابة نص الجملة التي تقال في الصوت حرفاً بحرف
+          if (tick % 2 === 0 && textCharIdx < text.length) {
+            textCharIdx++;
           }
 
-          // المرحلة 3: ظهور الصورة بسلاسة
+          ctx.font = '14px Cairo, sans-serif';
+          const maxTextW = 320;
+          const currentText = text.substring(0, textCharIdx);
+          const lines = this.wrapText(ctx, currentText, maxTextW);
+
+          ctx.fillStyle = '#27272a';
+          ctx.textAlign = 'right';
+          lines.forEach((l, lIdx) => {
+            const prefix = lIdx === 0 ? "💬 " : "    ";
+            ctx.fillText(prefix + l, x + 200, y + 75 + lIdx * 22);
+          });
+
+          // 4. ظهور الصورة التوضيحية بجانب السكتش
           if (imgObj && imgObj.complete && imgOpacity < 1) {
-            imgOpacity = Math.min(1, imgOpacity + 0.025);
+            imgOpacity = Math.min(1, imgOpacity + 0.03);
           }
           if (imgObj && imgObj.complete && imgOpacity > 0) {
             ctx.globalAlpha = imgOpacity;
-            const imgH = 140;
+            const imgW = 140;
+            const imgH = 120;
             ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(0,0,0,0.06)';
-            ctx.shadowBlur = 8;
+            ctx.strokeStyle = '#e4e4e7';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.roundRect(x + 20, y - imgH - 20, w - 40, imgH, 12);
+            ctx.roundRect(x + 180, y - 100, imgW, imgH, 10);
             ctx.fill();
+            ctx.stroke();
 
             ctx.clip();
-            ctx.drawImage(imgObj, x + 25, y - imgH - 15, w - 50, imgH - 10);
+            ctx.drawImage(imgObj, x + 185, y - 95, imgW - 10, imgH - 10);
             ctx.globalAlpha = 1.0;
           }
+          ctx.restore();
         }
-        ctx.restore();
 
-        if (drawProgress >= 1 && labelCharIndex >= (label || '').length && (!subtitle || descCharIndex >= subtitle.length) && imgOpacity >= 0.9) {
+        if (sketchProg >= 1 && textCharIdx >= text.length && (!imgObj || imgOpacity >= 0.9)) {
           this.drawnObjects.push({
-            render: (c) => this.renderStaticElement(c, elem, imgObj)
+            render: (c) => this.renderStaticSentence(c, sentence, imgObj)
           });
+
+          // رسم السهم إلى الجملة التالية إن وجد
+          if (sentence.arrow_to_next) {
+            this.drawNextArrow(sentence._x + 340, sentence._y, sentence._x + 500, sentence._y, sentence.arrow_to_next);
+          }
+
+          if (onFinish) onFinish();
           return false;
         }
         return true;
@@ -351,39 +396,29 @@ class InfiniteWhiteboard {
     this.activeAnimations.push(anim);
   }
 
-  // 3. أنيميشن السهم الممتد
-  drawConnectionAnimated(conn) {
-    const fromElem = this.elementsMap[conn.from];
-    const toElem = this.elementsMap[conn.to];
-    if (!fromElem || !toElem) return;
-
-    const startX = fromElem._centerX + fromElem._width / 2;
-    const startY = fromElem._centerY;
-    const endX = toElem._centerX - toElem._width / 2;
-    const endY = toElem._centerY;
-
+  // رسم السهم الممتد بالقلم الأسود نحو الجملة التالية
+  drawNextArrow(startX, startY, endX, endY, label) {
     let progress = 0;
     const anim = {
       update: (ctx) => {
-        progress = Math.min(1, progress + 0.025);
-
-        const currentX = startX + (endX - startX) * progress;
-        const currentY = startY + (endY - startY) * progress;
+        progress = Math.min(1, progress + 0.04);
+        const curX = startX + (endX - startX) * progress;
+        const curY = startY + (endY - startY) * progress;
 
         ctx.save();
-        ctx.strokeStyle = conn.color || '#f59e0b';
-        ctx.fillStyle = conn.color || '#f59e0b';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#18181b';
+        ctx.fillStyle = '#18181b';
+        ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
 
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        ctx.lineTo(currentX, currentY);
+        ctx.lineTo(curX, curY);
         ctx.stroke();
 
         if (progress >= 0.95) {
           const angle = Math.atan2(endY - startY, endX - startX);
-          const headLen = 14;
+          const headLen = 12;
           ctx.beginPath();
           ctx.moveTo(endX, endY);
           ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
@@ -391,18 +426,45 @@ class InfiniteWhiteboard {
           ctx.closePath();
           ctx.fill();
 
-          if (conn.label) {
-            ctx.fillStyle = '#0f172a';
-            ctx.font = 'bold 13px Cairo, sans-serif';
+          if (label) {
+            ctx.fillStyle = '#52525b';
+            ctx.font = 'bold 12px Cairo, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(conn.label, (startX + endX) / 2, (startY + endY) / 2 - 12);
+            ctx.fillText(label, (startX + endX) / 2, startY - 12);
           }
         }
         ctx.restore();
 
         if (progress >= 1) {
           this.drawnObjects.push({
-            render: (c) => this.renderStaticConnection(c, startX, startY, endX, endY, conn)
+            render: (c) => {
+              c.save();
+              c.strokeStyle = '#18181b';
+              c.fillStyle = '#18181b';
+              c.lineWidth = 3.5;
+              c.lineCap = 'round';
+              c.beginPath();
+              c.moveTo(startX, startY);
+              c.lineTo(endX, endY);
+              c.stroke();
+
+              const angle = Math.atan2(endY - startY, endX - startX);
+              const headLen = 12;
+              c.beginPath();
+              c.moveTo(endX, endY);
+              c.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+              c.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+              c.closePath();
+              c.fill();
+
+              if (label) {
+                c.fillStyle = '#52525b';
+                c.font = 'bold 12px Cairo, sans-serif';
+                c.textAlign = 'center';
+                c.fillText(label, (startX + endX) / 2, startY - 12);
+              }
+              c.restore();
+            }
           });
           return false;
         }
@@ -412,80 +474,38 @@ class InfiniteWhiteboard {
     this.activeAnimations.push(anim);
   }
 
-  renderStaticElement(ctx, elem, imgObj) {
-    const { _x: x, _y: y, _width: w, _height: h, label, subtitle, color = '#2563eb' } = elem;
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 12);
-    ctx.fill();
-    ctx.stroke();
+  renderStaticSentence(ctx, s, imgObj) {
+    const x = s._x;
+    const y = s._y;
+    this.drawDoodleSketch(ctx, s.doodle_type, x, y, 1);
 
-    ctx.fillStyle = '#0f172a';
+    ctx.save();
+    ctx.fillStyle = '#18181b';
     ctx.font = 'bold 16px Cairo, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(label, x + w / 2, y + h / 2 + 6);
+    ctx.fillText(s.doodle_label || '', x + 70, y + 40);
 
-    if (subtitle) {
-      ctx.font = 'bold 12px Cairo, sans-serif';
-      const lines = this.wrapText(ctx, subtitle, w - 30);
-      const cardHeight = Math.max(80, lines.length * 22 + 25);
+    ctx.font = '14px Cairo, sans-serif';
+    const lines = this.wrapText(ctx, s.sentence_text || '', 320);
+    ctx.fillStyle = '#27272a';
+    ctx.textAlign = 'right';
+    lines.forEach((l, lIdx) => {
+      const prefix = lIdx === 0 ? "💬 " : "    ";
+      ctx.fillText(prefix + l, x + 200, y + 75 + lIdx * 22);
+    });
 
-      ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = '#e2e8f0';
+    if (imgObj && imgObj.complete) {
+      const imgW = 140;
+      const imgH = 120;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#e4e4e7';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(x, y + h + 15, w, cardHeight, 10);
+      ctx.roundRect(x + 180, y - 100, imgW, imgH, 10);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = '#334155';
-      ctx.textAlign = 'right';
-      lines.forEach((l, idx) => {
-        const prefix = idx === 0 ? "📌 " : "    ";
-        ctx.fillText(prefix + l, x + w - 12, y + h + 40 + idx * 20);
-      });
-    }
-
-    if (imgObj && imgObj.complete) {
-      const imgH = 140;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.roundRect(x + 20, y - imgH - 20, w - 40, imgH, 12);
-      ctx.fill();
-      ctx.drawImage(imgObj, x + 25, y - imgH - 15, w - 50, imgH - 10);
-    }
-    ctx.restore();
-  }
-
-  renderStaticConnection(ctx, startX, startY, endX, endY, conn) {
-    ctx.save();
-    ctx.strokeStyle = conn.color || '#f59e0b';
-    ctx.fillStyle = conn.color || '#f59e0b';
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-
-    const angle = Math.atan2(endY - startY, endX - startX);
-    const headLen = 14;
-    ctx.beginPath();
-    ctx.moveTo(endX, endY);
-    ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
-    ctx.closePath();
-    ctx.fill();
-
-    if (conn.label) {
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 13px Cairo, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(conn.label, (startX + endX) / 2, (startY + endY) / 2 - 12);
+      ctx.drawImage(imgObj, x + 185, y - 95, imgW - 10, imgH - 10);
     }
     ctx.restore();
   }

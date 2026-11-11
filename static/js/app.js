@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const whiteboard = new InfiniteWhiteboard('whiteboardCanvas');
+  const whiteboard = new DoodleWhiteboard('whiteboardCanvas');
   const explainForm = document.getElementById('explainForm');
   const topicInput = document.getElementById('topicInput');
   const langSelect = document.getElementById('langSelect');
@@ -23,8 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cfgVoiceAr = document.getElementById('cfgVoiceAr');
 
   let currentPlan = null;
-  let drawnElements = new Set();
-  let drawnConnections = new Set();
+  let activeSentenceIdx = 0;
 
   async function loadConfig() {
     try {
@@ -84,8 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
   clearBtn.addEventListener('click', () => {
     whiteboard.clear();
     lectureAudio.pause();
-    drawnElements.clear();
-    drawnConnections.clear();
     lessonTitle.textContent = 'جاهز للشرح... اكتب موضوعك في الشات';
     statusText.textContent = 'مستعد';
     progressBar.style.width = '0%';
@@ -101,9 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     topicInput.value = '';
 
     submitBtn.disabled = true;
-    submitBtn.querySelector('.btn-text').textContent = 'جاري سؤال الـ API والتوليد...';
+    submitBtn.querySelector('.btn-text').textContent = 'الرسام يجهز السكتشات...';
     submitBtn.querySelector('.spinner').style.display = 'inline-block';
-    statusText.textContent = 'جاري الاتصال بنموذج الذكاء الاصطناعي...';
+    statusText.textContent = 'جاري التوليد وسحب الصور الصوتية...';
 
     try {
       const response = await fetch('/api/explain', {
@@ -116,16 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'فشل الاتصال بالـ API');
-      }
+      if (!response.ok) throw new Error(data.error || 'فشل الاتصال بالـ API');
 
       currentPlan = data;
-      startLecture(currentPlan);
+      startDoodleLecture(data);
 
     } catch (err) {
       console.error(err);
-      addChatMessage(`⚠️ خطأ من السيرفر: ${err.message}`, 'system-msg');
+      addChatMessage(`⚠️ خطأ: ${err.message}`, 'system-msg');
       statusText.textContent = 'حدث خطأ في الاتصال';
     } finally {
       submitBtn.disabled = false;
@@ -142,65 +137,62 @@ document.addEventListener('DOMContentLoaded', () => {
     chatHistory.scrollTop = chatHistory.scrollHeight;
   }
 
-  function startLecture(plan) {
+  // تشغيل الدرس جملة بجملة: نطق الجملة ➔ في نفس اللحظة رسم السكتش الأسود + نص الجملة + الصورة
+  function startDoodleLecture(plan) {
     whiteboard.clear();
-    drawnElements.clear();
-    drawnConnections.clear();
+    activeSentenceIdx = 0;
 
     const title = plan.title || 'شرح الدرس';
     lessonTitle.textContent = title;
-    statusText.textContent = 'الأستاذ يشرح على السبورة...';
+    statusText.textContent = 'الأستاذ يرسم السكتشات ويشرح...';
 
-    // 1. حساب الإحداثيات وتوزيع العناصر اللانهائي المريح
-    const elements = plan.elements || [];
-    whiteboard.computeInfiniteLayout(elements);
+    const sentences = plan.sentences || [];
+    if (sentences.length === 0) return;
 
-    // 2. رسم العنوان بأنيميشن القلم
+    // 1. حساب مواضع الجمل على السبورة
+    whiteboard.computeSentencesLayout(sentences);
+
+    // 2. كتابة العنوان في الأعلى
     whiteboard.drawTitleAnimated(title);
 
-    // 3. تشغيل الصوت المتواصل
-    if (plan.audio_url) {
-      lectureAudio.src = plan.audio_url;
-      lectureAudio.play().catch(e => console.log('Autoplay info:', e));
-    }
+    // 3. بدء الجملة الأولى بعد كتابة العنوان
+    setTimeout(() => {
+      playSentence(0);
+    }, 1200);
   }
 
-  // مزامنة دقيقة مع ثواني الصوت لظهور كل عنصر في وقته
-  lectureAudio.addEventListener('timeupdate', () => {
-    if (!currentPlan) return;
+  function playSentence(index) {
+    if (!currentPlan || !currentPlan.sentences || index >= currentPlan.sentences.length) {
+      statusText.textContent = 'اكتمل الدرس بنجاح!';
+      progressBar.style.width = '100%';
+      return;
+    }
 
-    const currentTime = lectureAudio.currentTime;
-    const duration = lectureAudio.duration || 1;
+    activeSentenceIdx = index;
+    const sent = currentPlan.sentences[index];
+    const total = currentPlan.sentences.length;
 
-    progressBar.style.width = `${(currentTime / duration) * 100}%`;
+    // تحديث النسبة والوقت
+    const progressPercent = ((index) / total) * 100;
+    progressBar.style.width = `${progressPercent}%`;
+    timeDisplay.textContent = `جملة ${index + 1} من ${total}`;
 
-    const formatTime = (s) => {
-      const m = Math.floor(s / 60);
-      const sec = Math.floor(s % 60);
-      return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
-    };
-    timeDisplay.textContent = `⏱️ ${formatTime(currentTime)} / ${formatTime(duration)}`;
+    // تشغيل صوت هذه الجملة تحديداً
+    if (sent.audio_url) {
+      lectureAudio.src = sent.audio_url;
+      lectureAudio.play().catch(e => console.warn('Audio play info:', e));
+    }
 
-    // فحص العناصر المطلوب رسمها بأنيميشن عند هذه الثانية
-    (currentPlan.elements || []).forEach(elem => {
-      const t = elem.appearance_time ?? 0;
-      if (currentTime >= t && !drawnElements.has(elem)) {
-        drawnElements.add(elem);
-        whiteboard.drawElementAnimated(elem);
+    // في نفس اللحظة: رسم السكتش الأسود وكتابة الجملة تحته وظهور الصورة
+    whiteboard.drawSentenceAnimated(sent, index, () => {
+      // عند اكتمال الرسم، ننتظر انتهاء نطق الجملة ثم ننتقل للجملة التالية
+      if (sent.audio_url && !lectureAudio.ended && !lectureAudio.paused) {
+        lectureAudio.onended = () => {
+          setTimeout(() => playSentence(index + 1), 500);
+        };
+      } else {
+        setTimeout(() => playSentence(index + 1), 1000);
       }
     });
-
-    // فحص الأسهم الرابطة بأنيميشن عند هذه الثانية
-    (currentPlan.connections || []).forEach(conn => {
-      const t = conn.appearance_time ?? 0;
-      if (currentTime >= t && !drawnConnections.has(conn)) {
-        drawnConnections.add(conn);
-        whiteboard.drawConnectionAnimated(conn);
-      }
-    });
-  });
-
-  lectureAudio.addEventListener('ended', () => {
-    statusText.textContent = 'اكتمل الشرح بنجاح!';
-  });
+  }
 });

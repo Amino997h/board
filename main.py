@@ -52,39 +52,39 @@ async def create_explanation(req: ExplainRequest):
     config = get_config()
     session_id = str(uuid.uuid4())[:8]
 
-    # 1. استدعاء الـ API بدون قيود، يخرج العناصر والأسهم بعدد غير محدد
+    # 1. استدعاء النموذج اللغوي بالهيكل الصارم (جمل وسكتشات)
     try:
         plan = generate_whiteboard_plan(topic, config)
     except Exception as e:
         print(f"API Error: {e}")
         return JSONResponse({"error": f"فشل الاتصال بالـ API: {str(e)}"}, status_code=500)
 
-    # 2. توليد صوت الشرح الكامل
-    full_speech = plan.get("full_speech", "")
+    sentences = plan.get("sentences", [])
     voice = config.get("tts", {}).get("voice_ar" if req.language == "ar" else "voice_en", "ar-EG-ShakirNeural")
-    audio_filename = f"{session_id}_lecture.mp3"
-    audio_path = os.path.join(MEDIA_DIR, audio_filename)
 
-    audio_ok = await synthesize_speech(full_speech, audio_path, lang=req.language, voice=voice)
-    if audio_ok:
-        plan["audio_url"] = f"/media/{audio_filename}"
+    # 2. توليد ملف صوتي مستقل لكل جملة لضمان التزامن 100% بين نطق الجملة ورسم سكتشها
+    for i, s in enumerate(sentences):
+        text = s.get("sentence_text", "")
+        audio_name = f"{session_id}_sent_{i}.mp3"
+        audio_path = os.path.join(MEDIA_DIR, audio_name)
+        ok = await synthesize_speech(text, audio_path, lang=req.language, voice=voice)
+        if ok:
+            s["audio_url"] = f"/media/{audio_name}"
 
-    # 3. جلب الصور التوضيحية للعناصر أياً كان عددها
-    elements = plan.get("elements", [])
-    for elem in elements:
-        img_query = elem.get("image_query", "")
-        if img_query:
-            urls = scrape_bing_images(img_query, max_results=3)
-            img_downloaded = False
+        # تنزيل صورة توضيحية من الإنترنت بجانب الرسمة
+        img_q = s.get("image_query", "")
+        if img_q:
+            urls = scrape_bing_images(img_q, max_results=2)
+            img_done = False
             for u in urls:
-                img_name = f"{session_id}_{elem.get('id', 'item')}_{str(uuid.uuid4())[:4]}.jpg"
+                img_name = f"{session_id}_img_{i}_{str(uuid.uuid4())[:4]}.jpg"
                 save_dest = os.path.join(MEDIA_DIR, img_name)
                 if download_image(u, save_dest):
-                    elem["image_url"] = f"/media/{img_name}"
-                    img_downloaded = True
+                    s["image_url"] = f"/media/{img_name}"
+                    img_done = True
                     break
-            if not img_downloaded:
-                elem["image_url"] = "https://cdn-icons-png.flaticon.com/512/1006/1006771.png"
+            if not img_done:
+                s["image_url"] = ""
 
     return plan
 
