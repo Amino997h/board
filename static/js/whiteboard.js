@@ -160,7 +160,6 @@ class DoodleWhiteboard {
     return lines;
   }
 
-  // رسم سكتشات هندسية واضحة ونظيفة بدون أي صلبان نهائياً
   drawCleanDoodle(ctx, sketchType, x, y, progress = 1) {
     ctx.save();
     ctx.strokeStyle = '#18181b';
@@ -173,29 +172,26 @@ class DoodleWhiteboard {
     const type = (sketchType || '').toLowerCase();
 
     if (type.includes('tank') || type.includes('tread') || type.includes('armor')) {
-      // سكتش دبابة / جنزير مدرعة
+      // سكتش جنزير دبابة ومدرعة
       ctx.beginPath();
       ctx.roundRect(cx - 50, cy + 5, 100, 30, 15);
       ctx.stroke();
-      // عجلات الجنزير
       for (let i = -30; i <= 30; i += 20) {
         ctx.beginPath();
         ctx.arc(cx + i, cy + 20, 8, 0, Math.PI * 2);
         ctx.stroke();
       }
       if (progress > 0.4) {
-        // برج الدبابة
         ctx.beginPath();
         ctx.arc(cx, cy + 5, 25, Math.PI, 0);
         ctx.stroke();
-        // المدفع
         ctx.beginPath();
         ctx.moveTo(cx + 25, cy - 8);
         ctx.lineTo(cx + 70, cy - 8);
         ctx.stroke();
       }
     } else if (type.includes('gun') || type.includes('barrel') || type.includes('missile')) {
-      // مدفع أو صاروخ
+      // مدفع / صاروخ
       ctx.beginPath();
       ctx.moveTo(cx - 40, cy);
       ctx.lineTo(cx + 40, cy);
@@ -203,7 +199,6 @@ class DoodleWhiteboard {
       ctx.lineTo(cx + 40, cy + 16);
       ctx.stroke();
       if (progress > 0.5) {
-        // رأس المدفع / الصاروخ
         ctx.beginPath();
         ctx.moveTo(cx + 40, cy - 6);
         ctx.lineTo(cx + 60, cy + 8);
@@ -212,7 +207,7 @@ class DoodleWhiteboard {
         ctx.stroke();
       }
     } else if (type.includes('gear')) {
-      // ترس ميكانيكي مسنن
+      // ترس مسنن
       const r = 36;
       ctx.beginPath();
       ctx.arc(cx, cy, r * progress, 0, Math.PI * 2);
@@ -230,7 +225,7 @@ class DoodleWhiteboard {
         }
       }
     } else if (type.includes('piston') || type.includes('engine')) {
-      // مكبس ومحرك
+      // مكبس وأسطوانة
       ctx.beginPath();
       ctx.rect(cx - 26, cy - 35, 52, 45);
       ctx.stroke();
@@ -244,7 +239,6 @@ class DoodleWhiteboard {
         ctx.stroke();
       }
     } else if (type.includes('wheel')) {
-      // عجلة
       ctx.beginPath();
       ctx.arc(cx, cy, 38 * progress, 0, Math.PI * 2);
       ctx.stroke();
@@ -252,7 +246,6 @@ class DoodleWhiteboard {
       ctx.arc(cx, cy, 15, 0, Math.PI * 2);
       ctx.stroke();
     } else if (type.includes('fire')) {
-      // شعلة طاقة
       ctx.beginPath();
       ctx.moveTo(cx, cy + 30);
       ctx.quadraticCurveTo(cx - 25, cy + 10, cx - 10, cy - 10);
@@ -261,7 +254,6 @@ class DoodleWhiteboard {
       ctx.quadraticCurveTo(cx + 25, cy + 10, cx, cy + 30);
       ctx.stroke();
     } else {
-      // سكتش بطاقة توضيحية بقلم أسود ناعم ومفتوح بدون أي صلبان
       ctx.beginPath();
       ctx.roundRect(cx - 45, cy - 35, 90, 70, 10);
       ctx.stroke();
@@ -328,11 +320,12 @@ class DoodleWhiteboard {
     this.activeAnimations.push(anim);
   }
 
+  // رسم المشهد: عنوان السكتش + ملاحظات ونقاط السبورة التلخيصية الذكية (وليس الجملة المنطوقة)
   drawSceneAnimated(scene, onFinish) {
     this.focusOn(scene._centerX, scene._y + 50);
 
     let sketchProg = 0;
-    let textCharIdx = 0;
+    let noteCharIdx = 0;
     let tick = 0;
     let imgOpacity = 0;
     let imgObj = null;
@@ -348,42 +341,42 @@ class DoodleWhiteboard {
         tick++;
         const x = scene._x;
         const y = scene._y;
-        const text = scene.narration || '';
-        const label = scene.label || '';
-        const sketch = scene.sketch || scene.doodle_type || 'box';
+        const note = scene.whiteboard_note || scene.explanation || '';
+        const title = scene.sketch_title || scene.label || '';
+        const sketch = scene.sketch || 'box';
 
         // 1. رسم السكتش الأسود
-        sketchProg = Math.min(1, sketchProg + 0.035);
+        sketchProg = Math.min(1, sketchProg + 0.04);
         this.drawCleanDoodle(ctx, sketch, x, y, sketchProg);
 
-        // 2. كتابة العنوان التوضيحي
+        // 2. كتابة عنوان المكون بخط القلم الأسود
         if (sketchProg >= 0.7) {
           ctx.save();
-          ctx.fillStyle = '#18181b';
-          ctx.font = 'bold 16px Cairo, sans-serif';
+          ctx.fillStyle = '#09090b';
+          ctx.font = 'bold 17px Cairo, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(label, x + 75, y + 42);
+          ctx.fillText(title, x + 75, y + 42);
 
-          // 3. كتابة نص الشرح المباشر حرفاً بحرف
-          if (tick % 2 === 0 && textCharIdx < text.length) {
-            textCharIdx++;
+          // 3. كتابة الملاحظات والنقاط التلخيصية للسبورة حرفاً بحرف
+          if (tick % 2 === 0 && noteCharIdx < note.length) {
+            noteCharIdx++;
           }
 
-          ctx.font = '14px Cairo, sans-serif';
-          const maxTextW = 330;
-          const currentText = text.substring(0, textCharIdx);
-          const lines = this.wrapText(ctx, currentText, maxTextW);
+          ctx.font = 'bold 13px Cairo, sans-serif';
+          const maxTextW = 340;
+          const currentNote = note.substring(0, noteCharIdx);
+          const lines = this.wrapText(ctx, currentNote, maxTextW);
 
-          ctx.fillStyle = '#27272a';
+          ctx.fillStyle = '#18181b';
           ctx.textAlign = 'right';
           lines.forEach((l, lIdx) => {
-            const prefix = lIdx === 0 ? "🎙️ " : "    ";
-            ctx.fillText(prefix + l, x + 210, y + 78 + lIdx * 22);
+            const prefix = lIdx === 0 ? "📝 " : "    ";
+            ctx.fillText(prefix + l, x + 210, y + 78 + lIdx * 24);
           });
 
           // 4. ظهور الصورة التوضيحية
           if (imgObj && imgObj.complete && imgOpacity < 1) {
-            imgOpacity = Math.min(1, imgOpacity + 0.03);
+            imgOpacity = Math.min(1, imgOpacity + 0.035);
           }
           if (imgObj && imgObj.complete && imgOpacity > 0) {
             ctx.globalAlpha = imgOpacity;
@@ -404,13 +397,13 @@ class DoodleWhiteboard {
           ctx.restore();
         }
 
-        if (sketchProg >= 1 && textCharIdx >= text.length && (!imgObj || imgOpacity >= 0.9)) {
+        if (sketchProg >= 1 && noteCharIdx >= note.length && (!imgObj || imgOpacity >= 0.9)) {
           this.drawnObjects.push({
             render: (c) => this.renderStaticScene(c, scene, imgObj)
           });
 
           // رسم السهم إلى المشهد التالي
-          const arrowLabel = scene.arrow_text || scene.arrow_to_next;
+          const arrowLabel = scene.arrow_to_next || scene.arrow_text;
           if (arrowLabel) {
             this.drawNextArrow(scene._x + 360, scene._y, scene._x + 530, scene._y, arrowLabel);
           }
@@ -504,22 +497,22 @@ class DoodleWhiteboard {
   renderStaticScene(ctx, sc, imgObj) {
     const x = sc._x;
     const y = sc._y;
-    const sketch = sc.sketch || sc.doodle_type || 'box';
+    const sketch = sc.sketch || 'box';
     this.drawCleanDoodle(ctx, sketch, x, y, 1);
 
     ctx.save();
-    ctx.fillStyle = '#18181b';
-    ctx.font = 'bold 16px Cairo, sans-serif';
+    ctx.fillStyle = '#09090b';
+    ctx.font = 'bold 17px Cairo, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(sc.label || '', x + 75, y + 42);
+    ctx.fillText(sc.sketch_title || sc.label || '', x + 75, y + 42);
 
-    ctx.font = '14px Cairo, sans-serif';
-    const lines = this.wrapText(ctx, sc.narration || '', 330);
-    ctx.fillStyle = '#27272a';
+    ctx.font = 'bold 13px Cairo, sans-serif';
+    const lines = this.wrapText(ctx, sc.whiteboard_note || sc.explanation || '', 340);
+    ctx.fillStyle = '#18181b';
     ctx.textAlign = 'right';
     lines.forEach((l, lIdx) => {
-      const prefix = lIdx === 0 ? "🎙️ " : "    ";
-      ctx.fillText(prefix + l, x + 210, y + 78 + lIdx * 22);
+      const prefix = lIdx === 0 ? "📝 " : "    ";
+      ctx.fillText(prefix + l, x + 210, y + 78 + lIdx * 24);
     });
 
     if (imgObj && imgObj.complete) {

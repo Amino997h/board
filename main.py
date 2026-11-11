@@ -59,21 +59,19 @@ async def create_explanation(req: ExplainRequest):
         print(f"API Error: {e}")
         return JSONResponse({"error": f"فشل الاتصال بالـ API: {str(e)}"}, status_code=500)
 
-    # توحيد المفاتيح سواء كانت scenes أو sentences
     scenes = plan.get("scenes") or plan.get("sentences") or []
     plan["scenes"] = scenes
 
-    # تثبيت صوت الرجل الطبيعي الرصين (حامد السعودي أو شاكر)
     fixed_male_voice = "ar-SA-HamedNeural" if req.language == "ar" else "en-US-GuyNeural"
 
-    # 2. توليد الصوت لكل مشهد مع الصورة التوضيحية
+    # 2. توليد الصوت بسرعة 1.3x (+30%) لكل مشهد
     for i, sc in enumerate(scenes):
-        narration = sc.get("narration") or sc.get("sentence_text") or ""
-        sc["narration"] = narration
+        spoken = sc.get("spoken_audio") or sc.get("narration") or sc.get("sentence_text") or ""
+        sc["spoken_audio"] = spoken
 
-        audio_name = f"{session_id}_sc_{i}.mp3"
+        audio_name = f"{session_id}_spk_{i}.mp3"
         audio_path = os.path.join(MEDIA_DIR, audio_name)
-        ok = await synthesize_speech(narration, audio_path, lang=req.language, voice=fixed_male_voice)
+        ok = await synthesize_speech(spoken, audio_path, lang=req.language, voice=fixed_male_voice, rate="+30%")
         if ok:
             sc["audio_url"] = f"/media/{audio_name}"
 
